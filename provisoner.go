@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"syscall"
+	"time"
 
 	"github.com/mitchellh/packer/common"
 	"github.com/mitchellh/packer/helper/config"
@@ -14,13 +16,14 @@ import (
 type Config struct {
 	common.PackerConfig `mapstructure:",squash"`
 
-	DestPath string `mapstructure:"dest_path"`
+	SourcePath string `mapstructure:"source_path"`
 
 	ctx interpolate.Context
 }
 
 type Provisioner struct {
-	config Config
+	config   Config
+	destPath string
 }
 
 func (p *Provisioner) Prepare(raws ...interface{}) error {
@@ -33,9 +36,9 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	}
 
 	var errs *packer.MultiError
-	if p.config.DestPath == "" {
+	if p.config.SourcePath == "" {
 		errs = packer.MultiErrorAppend(errs,
-			errors.New("`dest_path' must be specified."))
+			errors.New("`source_path' must be specified."))
 	}
 
 	if errs != nil && len(errs.Errors) > 0 {
@@ -45,8 +48,23 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 }
 
 func (p *Provisioner) Provision(ui packer.Ui, comm packer.Communicator) error {
-	ui.Say("Plugin test")
-	ui.Say(fmt.Sprintf("DestPath is: %s", p.config.DestPath))
+	// Upload serverspec source
+	dest := fmt.Sprintf("/tmp/packer-provisioner-serverspec.%d.%d", time.Now().Unix(), syscall.Getpid)
+	ui.Say(fmt.Sprintf("Uploading %s => %s", p.config.SourcePath, dest))
+
+	info, err := os.Stat(p.config.SourcePath)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("source_path %s is not a directory.", p.config.SourcePath)
+	}
+
+	err = comm.UploadDir(dest, p.config.SourcePath, nil)
+	if err != nil {
+		return err
+	}
+	p.destPath = dest
 
 	return nil
 }
