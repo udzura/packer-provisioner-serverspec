@@ -7,9 +7,11 @@ Allows to run your serverspec in a packer provisioning phase
 ```json
 {
     "builders" : [
-        "type": "amazon-ebs",
-        "ssh_username": "centos", // should be sudoable
-        //...
+        {
+            "type": "amazon-ebs",
+            "ssh_username": "centos", // should be sudoable
+            //...
+        }
     ],
 
     "provisioners": [
