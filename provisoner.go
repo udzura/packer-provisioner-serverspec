@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"syscall"
 	"time"
 
@@ -65,6 +66,52 @@ func (p *Provisioner) Provision(ui packer.Ui, comm packer.Communicator) error {
 		return err
 	}
 	p.destPath = dest
+
+	var cmd *packer.RemoteCmd
+	// Preparing serverspec
+	installer := []string{
+		"if which apt-get; then",
+		"  FILE=`mktemp`;",
+		"  curl -qL https://packagecloud.io/omnibus-serverspec/serverspec/packages/ubuntu/trusty/serverspec_2.19.0+20150626234406-198_amd64.deb/download > $FILE;",
+		"  sudo dpkg -i $FILE;",
+		"  rm -f $FILE;",
+		"else",
+		"  sudo rpm -Uvh https://packagecloud.io/omnibus-serverspec/serverspec/packages/el/6/serverspec-2.19.0+20150626234135-198.el6.x86_64.rpm/download;",
+		"fi",
+	}
+
+	ui.Say("Preparing serverspec via omnubus package...")
+	cmd = &packer.RemoteCmd{Command: strings.Join(installer, "")}
+	err = cmd.StartWithUi(comm, ui)
+	if err != nil {
+		return err
+	}
+
+	// Running serverspec
+	runner := fmt.Sprintf("cd %s && sudo /usr/local/bin/rake spec", dest)
+
+	ui.Say("Running serverspec via `rake spec'...")
+	cmd = &packer.RemoteCmd{Command: runner}
+	err = cmd.StartWithUi(comm, ui)
+	if err != nil {
+		return err
+	}
+
+	// Cleanup processes
+	cleaner := []string{
+		"if which apt-get; then",
+		"  sudo apt-get -y remove serverspec;",
+		"else",
+		"  sudo yum -y remove serverspec;",
+		"fi;",
+		fmt.Sprintf("sudo rm -rf %s", dest),
+	}
+	ui.Say("Cleaning up serverspec packages and files...")
+	cmd = &packer.RemoteCmd{Command: strings.Join(cleaner, "")}
+	err = cmd.StartWithUi(comm, ui)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
