@@ -10,6 +10,7 @@ Allows to run your serverspec in a packer provisioning phase
         {
             "type": "amazon-ebs",
             "ssh_username": "centos", // should be sudoable
+            "ssh_pty": true, // tty should be available iafter packer 0.8
             //...
         }
     ],
