@@ -1,0 +1,19 @@
+{
+    "variables": {
+        "vagrant_ssh_port":     "{{env `VAGRANT_SSH_PORT`}}",
+        "vagrant_privkey_file": "{{env `VAGRANT_PRIVKEY_FILE`}}"
+    },
+
+    "builders": [{
+        "type": "null",
+        "ssh_host": "127.0.0.1",
+        "ssh_username": "vagrant",
+        "ssh_port": "{{user `vagrant_ssh_port`}}",
+        "ssh_private_key_file": "{{user `vagrant_privkey_file`}}",
+        "ssh_pty": true
+    }],
+
+    "provisioners": [{
+        "type": "serverspec"
+    }]
+}
